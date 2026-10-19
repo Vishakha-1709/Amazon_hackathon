@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Alexa+ LifeSync MCP Server on AWS Serverless
+  Deploys containerized FastAPI / FastMCP server on AWS Lambda / App Runner
+  with AWS Bedrock Converse integration.
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Environment:
+      Variables:
+        BEDROCK_MODEL_ID: anthropic.claude-3-5-sonnet-20241022-v2:0
+        AWS_DEFAULT_REGION: us-east-1
+
+Resources:
+  LifeSyncMCPApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: .
+      Description: LifeSync Model Context Protocol Server & Alexa+ Agent Adapter
+      Policies:
+        - Statement:
+            - Sid: BedrockInvokePolicy
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:Converse
+                - bedrock:ConverseStream
+              Resource: "*"
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        ApiBase:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ..
+      DockerTag: latest
+
+Outputs:
+  LifeSyncMCPEndpoint:
+    Description: "HTTP API Gateway endpoint URL for Alexa+ LifeSync MCP Server"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"

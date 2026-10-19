@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alexa+ LifeSync MCP | Enterprise Hackathon Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-badge">
+        <span class="logo-icon">▲</span>
+        <div class="logo-text">
+          <h1>Alexa+ LifeSync</h1>
+          <span class="sub-logo">Model Context Protocol (MCP) Server • v2.1</span>
+        </div>
+      </div>
+      <div class="status-pill online" id="serverStatusBadge">
+        <span class="status-dot"></span>
+        <span id="serverStatusText">Compensating Saga Engine Active</span>
+      </div>
+    </div>
+
+    <!-- Live Measured Benchmark Action Button -->
+    <button class="benchmark-live-btn" id="runBenchmarkBtn" title="Click to run live latency benchmark">
+      <span class="bolt-icon">⚡</span>
+      <span id="benchmarkLabel"><strong>Latency Benchmark:</strong> Atomic MCP vs. 5 Legacy Skills</span>
+      <span class="run-live-pill" id="benchmarkRunPill">▶ Run Live Test</span>
+    </button>
+
+    <div class="ecosystem-badges">
+      <div class="eco-badge real-badge" title="Genuinely Real API (Open-Meteo & RFC 5545 iCal)">
+        <span class="live-blink-dot"></span>
+        <span>Real APIs (Weather/iCal)</span>
+      </div>
+      <div class="eco-badge" title="Matter / Zigbee Saga Orchestration">
+        <span class="eco-icon">🛡️</span>
+        <span>Saga Rollback</span>
+      </div>
+      <div class="eco-badge" title="AWS Bedrock Converse Agent">
+        <span class="eco-icon">☁️</span>
+        <span>Bedrock</span>
+      </div>
+      <button class="voice-toggle-btn" id="voiceToggle" title="Toggle Alexa Speech Readout">
+        <span id="voiceIcon">🔊</span>
+        <span id="voiceLabel">Voice: ON</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Judge Control Ribbon -->
+  <div class="judge-control-ribbon">
+    <div class="ribbon-group">
+      <span class="ribbon-label">🔬 Failure Engineering:</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="toggleHardwareJam">
+        <span class="slider"></span>
+      </label>
+      <span class="toggle-desc" id="jamStatusText">Simulate Back Deadbolt Jam (Demo Saga Rollback)</span>
+    </div>
+
+    <div class="ribbon-group">
+      <span class="ribbon-label">📢 Proactive Ambient Triggers:</span>
+      <button class="proact-btn" data-event="package_delivery">📦 Porch Delivery</button>
+      <button class="proact-btn" data-event="low_recovery_workload">🐝 Low Sleep Alert</button>
+      <button class="proact-btn" data-event="deadline_countdown">⏳ 24h Deadline</button>
+      <button class="proact-btn" data-event="elder_care_checkin">👵 Elder Care Alert</button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="main-layout">
+    <!-- Left Panel: Alexa+ Conversational Assistant -->
+    <section class="chat-panel">
+      <div class="panel-header">
+        <div class="header-title">
+          <div class="alexa-glow-orb"></div>
+          <div>
+            <h2>Alexa+ Agent Console</h2>
+            <p>Multimodal Conversational AI with Safety PIN Guardrails & Saga Rollback</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span class="telemetry-pill" id="tokenCostPill">Tokens: 0 • $0.00000</span>
+          <button class="clear-chat-btn" id="clearChatBtn" title="Reset Chat">Clear</button>
+        </div>
+      </div>
+
+      <!-- Quick Scenario Chips for Judges -->
+      <div class="prompt-chips">
+        <span class="chips-label">Quick Scenarios:</span>
+        <button class="chip" data-prompt="Did anyone deliver?">📦 "Did anyone deliver?"</button>
+        <button class="chip" data-prompt="Give me my daily briefing with live weather and schedule.">🌦️ Live Brief & Weather</button>
+        <button class="chip" data-prompt="Activate Night Lockdown routine and check all smart locks.">🔒 Night Lockdown (Saga)</button>
+        <button class="chip" data-prompt="Unlock the front door for guest arrival.">🔑 Unlock Door (PIN Challenge)</button>
+        <button class="chip" data-prompt="Show me my cryptographic security audit trail.">📜 Audit Trail (SHA-256)</button>
+      </div>
+
+      <!-- Messages Thread -->
+      <div class="messages-container" id="messagesContainer">
+        <!-- Welcome Message -->
+        <div class="message assistant-message">
+          <div class="message-avatar">🎙️</div>
+          <div class="message-bubble">
+            <p class="greeting">Hello Alex! I am your <strong>Alexa+</strong> personal assistant powered by the <strong>LifeSync Model Context Protocol (MCP) server</strong>.</p>
+            <p>I feature <strong>Compensating Saga multi-device routines</strong> (try toggling the deadbolt jam above to test rollback handling!), <strong>verified live Open-Meteo weather</strong>, <strong>safety PIN challenges</strong> for exterior locks, and <strong>proactive ambient alerts</strong>.</p>
+            <p class="hint">Click any quick scenario button above or speak into your microphone!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="chat-input-bar">
+        <button class="mic-btn" id="micBtn" title="Speak to Alexa+ (Speech-to-Text)">
+          <span class="mic-icon">🎙️</span>
+        </button>
+        <input 
+          type="text" 
+          id="userInput" 
+          placeholder="Ask Alexa+ (e.g. 'Did anyone deliver?' or 'Activate Night Lockdown')..." 
+          autocomplete="off"
+        />
+        <button class="send-btn" id="sendBtn">
+          <span>Ask Alexa+</span>
+          <span class="arrow-icon">→</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Panel: Upgraded Inspector & Telemetry -->
+    <section class="inspector-panel">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="tab-mcp">
+          <span class="tab-icon">⚡</span>
+          <span>Live MCP Inspector</span>
+          <span class="badge" id="toolCallCountBadge">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-transparency">
+          <span class="tab-icon">🔍</span>
+          <span>Real vs Simulated</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-audit">
+          <span class="tab-icon">🛡️</span>
+          <span>Security & Audit</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-memory">
+          <span class="tab-icon">🧠</span>
+          <span>Memory & Habits</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: Live MCP Inspector -->
+      <div class="tab-content active" id="tab-mcp">
+        <div class="inspector-header">
+          <h3>Real-Time MCP Tool Call Stream</h3>
+          <span class="live-pulse"><span class="pulse-ring"></span>Observability Active</span>
+        </div>
+        <p class="inspector-subtitle">End-to-end execution waterfall, realistic cloud inference benchmarks, and collapsible JSON payloads.</p>
+
+        <div class="tool-call-feed" id="toolCallFeed">
+          <div class="empty-feed-placeholder">
+            <span class="empty-icon">🔍</span>
+            <p>No MCP tools invoked yet.</p>
+            <p class="hint">Ask Alexa+ a question on the left to see live tool dispatch, timing waterfalls, and JSON schemas.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Real vs Simulated Transparency Matrix -->
+      <div class="tab-content" id="tab-transparency">
+        <div class="transparency-view">
+          <div class="transparency-hero">
+            <h3>Authentic Engineering Transparency Matrix</h3>
+            <p>We believe in honest developer credibility. Here is the verified architectural breakdown of genuinely real external APIs vs. modular simulators.</p>
+          </div>
+
+          <div class="matrix-cards-grid" id="transparencyGrid">
+            <!-- Dynamic Matrix Cards -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Security & Cryptographic Audit Trail -->
+      <div class="tab-content" id="tab-audit">
+        <div class="audit-view">
+          <div class="section-title-row">
+            <div>
+              <h3>Tamper-Evident SHA-256 Audit Trail</h3>
+              <p class="inspector-subtitle" style="margin-bottom: 0;">Chained cryptographic log recording every device interaction, PIN challenge, and result.</p>
+            </div>
+            <button class="action-btn-sm" id="refreshAuditBtn">Refresh Trail</button>
+          </div>
+
+          <div class="privacy-badge-box">
+            <span class="shield-icon">🛡️</span>
+            <div>
+              <strong>Privacy & Retention Policy:</strong>
+              <span>Ring frames processed via zero-retention ephemeral inference. No persistent biometric face storage.</span>
+            </div>
+          </div>
+
+          <div class="audit-entries-list" id="auditEntriesList">
+            <!-- Dynamic Audit Entries -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Personalization Memory & Learned Habits -->
+      <div class="tab-content" id="tab-memory">
+        <div class="memory-view">
+          <h3>Personalization & Habit Prediction Engine</h3>
+          <p class="inspector-subtitle">Learned homeowner routines and adaptive environmental preferences based on 42 days of interaction cadence.</p>
+
+          <div class="habits-grid" id="habitsGridContainer">
+            <!-- Dynamic Habit Cards -->
+          </div>
+
+          <div class="impact-story-box">
+            <h4>💡 Impact Story: Accessibility & Senior Care</h4>
+            <p>LifeSync's ambient intelligence provides critical independence for mobility-impaired individuals and seniors. Hands-free voice routines eliminate physical strain, while proactive inactivity triggers alert family members without invasive camera streaming.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
