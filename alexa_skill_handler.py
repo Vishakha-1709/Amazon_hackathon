@@ -1,79 +1,95 @@
 """
-Amazon Alexa Skills Kit (ASK) Compatible Webhook Adapter
+Amazon Alexa Skills Kit (ASK) Production Webhook Adapter
 ========================================================
 Implements the official Amazon Alexa Skills Kit JSON request/response contract.
-Allows connecting this self-hosted server directly to the official Alexa Developer Console
-(developer.amazon.com) simulator or production Echo devices via HTTPS webhook.
+Supports:
+  - LaunchRequest, IntentRequest, and SessionEndedRequest.
+  - Multi-turn PIN challenge sessions maintaining pending_query in sessionAttributes.
+  - Built-in Stop, Cancel, Help, and Fallback intents.
+  - Timestamp staleness and Skill ID verification.
 """
 
-import json
 import logging
-from typing import Dict, Any
-
+import os
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 from bedrock_agent import BedrockMCPAgent
 
 logger = logging.getLogger("AlexaSkillHandler")
 agent = BedrockMCPAgent()
+ALEXA_SKILL_ID = os.getenv("ALEXA_SKILL_ID")  # Optional: amzn1.ask.skill....
 
+_INTENT_TEXT = {"AMAZON.HelpIntent": "help", "AMAZON.FallbackIntent": "status"}
 
-def handle_alexa_request(request_body: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Processes standard Alexa Skills Kit JSON payload.
-    Supports LaunchRequest, IntentRequest, and SessionEndedRequest.
-    """
-    req_type = request_body.get("request", {}).get("type", "LaunchRequest")
-    session = request_body.get("session", {})
-    user_id = session.get("user", {}).get("userId", "default_user")
+def _slot(slots: Dict[str, Any], name: str) -> Optional[str]:
+    return (slots.get(name) or {}).get("value")
 
-    if req_type == "LaunchRequest":
-        speech_text = (
-            "Welcome to LifeSync for Alexa+. Your Model Context Protocol server is connected. "
-            "You can ask about Ring deliveries, live weather briefings, or run your Night Lockdown routine."
-        )
-        return _build_alexa_response(speech_text, should_end_session=False)
+def verify_alexa_basics(body: Dict[str, Any]) -> None:
+    req = body.get("request", {})
+    ts = req.get("timestamp")
+    if ts:
+        try:
+            age = abs((datetime.now(timezone.utc) -
+                       datetime.fromisoformat(ts.replace("Z", "+00:00"))).total_seconds())
+            if age > 150:
+                raise ValueError("stale Alexa request (> 150s)")
+        except Exception as e:
+            if "stale" in str(e):
+                raise
 
-    elif req_type == "IntentRequest":
-        intent_name = request_body.get("request", {}).get("intent", {}).get("name", "")
-        slots = request_body.get("request", {}).get("intent", {}).get("slots", {})
+    app = (body.get("session", {}).get("application")
+           or body.get("context", {}).get("System", {}).get("application", {}))
+    if ALEXA_SKILL_ID and app and app.get("applicationId") != ALEXA_SKILL_ID:
+        raise ValueError("unexpected skill id")
 
-        # Extract spoken utterance or query
-        query_text = ""
-        if "query" in slots:
-            query_text = slots["query"].get("value", "")
-        elif "routine" in slots:
-            query_text = f"Activate {slots['routine'].get('value', '')} routine"
-        else:
-            query_text = intent_name.replace("AMAZON.", "").replace("Intent", "")
+def handle_alexa_request(body: Dict[str, Any]) -> Dict[str, Any]:
+    verify_alexa_basics(body)
+    req = body.get("request", {})
+    rtype = req.get("type", "LaunchRequest")
+    attrs = (body.get("session") or {}).get("attributes") or {}
 
-        logger.info("Received Alexa Intent '%s' with query: '%s'", intent_name, query_text)
+    if rtype == "SessionEndedRequest":
+        return {"version": "1.0", "response": {}}
+    if rtype == "LaunchRequest":
+        return _resp("Welcome to LifeSync. Ask about deliveries, your briefing, or say night lockdown.",
+                     end=False, reprompt="What would you like to do?")
+    if rtype != "IntentRequest":
+        return _resp("LifeSync received an unrecognized event.")
 
-        # Route through Bedrock Agent
-        agent_result = agent.process_message(query_text or "Give me my daily briefing")
-        speech_text = agent_result["response"]
+    intent = req.get("intent", {})
+    name, slots = intent.get("name", ""), intent.get("slots") or {}
 
-        return _build_alexa_response(speech_text, should_end_session=True)
+    if name in ("AMAZON.StopIntent", "AMAZON.CancelIntent"):
+        return _resp("Goodbye from LifeSync.")
+    if name == "AMAZON.HelpIntent":
+        return _resp("You can ask who delivered a package, get your briefing, or run night lockdown.",
+                     end=False, reprompt="What would you like to do?")
 
-    elif req_type == "SessionEndedRequest":
-        return _build_alexa_response("Goodbye from LifeSync.", should_end_session=True)
-
+    pin = _slot(slots, "pin")  # AMAZON.FOUR_DIGIT_NUMBER slot on a PinIntent
+    if pin and attrs.get("pending_query"):
+        query = attrs["pending_query"]
+    elif _slot(slots, "query"):
+        query = _slot(slots, "query")
+    elif _slot(slots, "routine"):
+        query = f"Activate {_slot(slots, 'routine')} routine"
     else:
-        return _build_alexa_response("LifeSync received an unrecognized Alexa event.", should_end_session=True)
+        query = _INTENT_TEXT.get(name, "") or "Give me my daily briefing"
 
+    result = agent.process_message(query, provided_pin=pin)
 
-def _build_alexa_response(speech_text: str, should_end_session: bool = True) -> Dict[str, Any]:
-    """Formats payload adhering to standard Alexa Skills Kit response schema."""
-    return {
-        "version": "1.0",
-        "response": {
-            "outputSpeech": {
-                "type": "PlainText",
-                "text": speech_text
-            },
-            "card": {
-                "type": "Simple",
-                "title": "Alexa+ LifeSync MCP",
-                "content": speech_text
-            },
-            "shouldEndSession": should_end_session
-        }
+    if result.get("security_status") == "PIN_CHALLENGE_REQUIRED":
+        return _resp(result["response"], end=False,
+                     reprompt="Please say your four digit PIN.",
+                     attrs={"pending_query": query})
+    return _resp(result["response"])
+
+def _resp(text: str, end: bool = True, reprompt: Optional[str] = None,
+          attrs: Optional[dict] = None) -> Dict[str, Any]:
+    r: Dict[str, Any] = {
+        "outputSpeech": {"type": "PlainText", "text": text},
+        "card": {"type": "Simple", "title": "Alexa+ LifeSync", "content": text},
+        "shouldEndSession": end,
     }
+    if reprompt:
+        r["reprompt"] = {"outputSpeech": {"type": "PlainText", "text": reprompt}}
+    return {"version": "1.0", "sessionAttributes": attrs or {}, "response": r}

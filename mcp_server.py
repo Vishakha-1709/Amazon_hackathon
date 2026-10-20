@@ -122,10 +122,15 @@ def query_ring_security_events(time_window_hours: int = 12, event_filter: str = 
     logger.info("Executing MCP Tool: query_ring_security_events (window=%dh, filter=%s)", time_window_hours, event_filter)
     events = MOCK_STATE["ring_events"]
     filtered = []
+    cutoff = datetime.now() - timedelta(hours=time_window_hours)
     for evt in events:
+        if datetime.strptime(evt["timestamp"], "%Y-%m-%d %H:%M:%S") < cutoff:
+            continue
         if event_filter == "packages" and not evt.get("package_detected"):
             continue
         if event_filter == "people" and not evt.get("person_detected"):
+            continue
+        if event_filter == "vehicles" and "vehicle" not in evt.get("event_type", "").lower():
             continue
         filtered.append(evt)
 
@@ -171,7 +176,7 @@ def execute_smart_routine(routine_name: str, security_pin: Optional[str] = None)
         return json.dumps({
             "status": "SECURITY_CHALLENGE_REQUIRED",
             "message": reason,
-            "required_action": "Homeowner must supply the 4-digit security PIN (Default: 4821) to unlock or disarm entryways."
+            "required_action": "Ask the homeowner to say their 4-digit security PIN."
         }, indent=2)
 
     routine_lower = routine_name.lower().replace(" ", "").replace("_", "")
@@ -189,7 +194,7 @@ def execute_smart_routine(routine_name: str, security_pin: Optional[str] = None)
         res = {
             "status": "SUCCESS",
             "atomicity": "COMMITTED",
-            "steps": ["PIN 4821 Authenticated", "Unlocked Front Deadbolt", "Turned on exterior walkway lighting"]
+            "steps": ["PIN authenticated", "Unlocked Front Deadbolt", "Turned on exterior walkway lighting"]
         }
         guardrails.record_audit_entry("execute_smart_routine", {"routine_name": "GuestWelcome", "pin_authenticated": True})
         return json.dumps(res, indent=2)
@@ -224,7 +229,12 @@ def get_security_audit_log(limit: int = 10) -> str:
     """
     logger.info("Executing MCP Tool: get_security_audit_log")
     trail = guardrails.get_audit_trail(limit)
-    return json.dumps({"audit_trail_count": len(trail), "chain_integrity": "VALID_SHA256", "entries": trail}, indent=2)
+    chain_ok = guardrails.verify_chain()
+    return json.dumps({
+        "audit_trail_count": len(trail),
+        "chain_integrity": "VALID_SHA256" if chain_ok else "COMPROMISED",
+        "entries": trail
+    }, indent=2)
 
 
 @mcp.tool()
@@ -304,5 +314,10 @@ TOOL_REGISTRY = {
 }
 
 if __name__ == "__main__":
-    logger.info("Starting Alexa+ LifeSync Enterprise MCP Server on stdio transport...")
-    mcp.run()
+    import sys
+    transport = "streamable-http" if "--http" in sys.argv else "stdio"
+    logger.info("Starting Alexa+ LifeSync Enterprise MCP Server on %s transport...", transport)
+    try:
+        mcp.run(transport=transport)
+    except TypeError:
+        mcp.run()

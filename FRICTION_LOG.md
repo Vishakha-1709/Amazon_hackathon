@@ -47,15 +47,24 @@ This friction log documents real-world developer experience, technical friction 
 
 ---
 
-## 4. Friction Point: Voice Authorization for High-Risk Physical Actions
-* **Observation:** Unlocking deadbolts or disarming perimeter alarms via conversational voice agents poses serious security risks if anyone in earshot can invoke them.
-* **Impact:** Homeowners avoid connecting smart locks to voice assistants due to lack of standard secondary challenge protocols.
+## 4. Friction Point: Voice Authorization for High-Risk Actions & Voice History Privacy
+* **Observation:** Unlocking deadbolts or disarming perimeter alarms via conversational voice agents poses serious security risks if anyone in earshot can invoke them. Furthermore, spoken PINs captured in custom Alexa slots risk persisting in the user's voice interaction history.
+* **Impact:** Homeowners avoid connecting smart locks to voice assistants due to lack of standard secondary challenge protocols and voice-log confidentiality concerns.
 * **Recommendation for Amazon:**
-  - Add native **Security PIN Challenge** abstractions to Alexa+ MCP specifications: when a tool is flagged as `risk_level: high`, Alexa+ natively prompts for a voice PIN or on-device biometric challenge before passing the tool call to the backend server.
+  - Add native **Security PIN Challenge** abstractions to Alexa+ MCP specifications: leverage Alexa's native *Voice Code* security framework (which masks digits in voice recordings) rather than requiring developers to roll custom `AMAZON.FOUR_DIGIT_NUMBER` intent slots.
+  - Automatically enforce on-device biometric or whisper confirmation on Echo devices before passing high-risk tool calls to the backend MCP server.
 
 ---
 
-## 5. Friction Point: Cross-Ecosystem Authentication & Device Scoping
+## 5. Friction Point: AWS Bedrock Inference Profile IDs & Model Routing
+* **Observation:** Recent Anthropic Claude models on AWS Bedrock (such as Claude 3.5 Sonnet v2) require using cross-region *Application Inference Profile IDs* rather than bare model ARNs in some regions.
+* **Impact:** Developers encountering `ValidationException: The provided model ID is only accessible via an inference profile` must rewrite configuration logic across multiple deployment environments.
+* **Recommendation for Amazon:**
+  - In the Alexa+ Developer SDK, provide transparent model aliasing (e.g. `bedrock.claude_3_5_sonnet_latest`) that automatically resolves the correct regional inference profile ID or fallback endpoint.
+
+---
+
+## 6. Friction Point: Cross-Ecosystem Authentication & Device Scoping
 * **Observation:** Orchestrating Ring cameras, smart locks, and Alexa+ through a single self-hosted MCP server requires developers to juggle distinct OAuth2 token scopes, Ring Appstore keys, and AWS IAM roles.
 * **Impact:** New developers often get stuck configuring AWS Cognito or IAM role trust relationships just to let an Alexa+ skill query Ring camera metadata.
 * **Recommendation for Amazon:**
