@@ -11,9 +11,12 @@ Verifies:
   7. Genuinely real Open-Meteo weather & RFC 5545 iCalendar sync
 """
 
+import os
 import sys
 import json
 import time
+import socket
+import subprocess
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -21,6 +24,37 @@ if hasattr(sys.stdout, "reconfigure"):
 import requests
 
 BASE_URL = "http://127.0.0.1:8000"
+
+def ensure_server():
+    """
+    Checks if simulator_api.py is running on port 8000.
+    If not, automatically launches it for the duration of the test suite.
+    """
+    s = socket.socket()
+    s.settimeout(0.8)
+    try:
+        s.connect(("127.0.0.1", 8000))
+        s.close()
+        return None  # Server already active
+    except Exception:
+        pass
+
+    print("[*] Local server not detected on http://127.0.0.1:8000.")
+    print("[*] Automatically launching simulator_api.py for test run...")
+    server_dir = os.path.dirname(os.path.abspath(__file__)) or "."
+    proc = subprocess.Popen([sys.executable, "simulator_api.py"], cwd=server_dir)
+    for _ in range(20):
+        time.sleep(0.5)
+        try:
+            s2 = socket.socket()
+            s2.settimeout(0.5)
+            s2.connect(("127.0.0.1", 8000))
+            s2.close()
+            print("[*] Local server ready on port 8000!\n")
+            return proc
+        except Exception:
+            continue
+    raise RuntimeError("Could not auto-start simulator_api.py on port 8000.")
 
 def run_tests():
     print("=" * 70)
@@ -154,4 +188,14 @@ def run_tests():
     print("=" * 70)
 
 if __name__ == "__main__":
-    run_tests()
+    server_process = ensure_server()
+    try:
+        run_tests()
+    finally:
+        if server_process:
+            print("\n[*] Stopping temporary test server process...")
+            server_process.terminate()
+            try:
+                server_process.wait(timeout=3)
+            except Exception:
+                server_process.kill()
