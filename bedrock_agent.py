@@ -189,16 +189,19 @@ class BedrockMCPAgent:
 
         unlock_guest_patterns = [
             r"\bunlock\b", r"\bopen (the )?(front )?door\b",
-            r"\blet .{1,20} in\b", r"\bwelcome (my )?guest"
+            r"\blet .{1,20} in\b", r"\bwelcome (my )?guest",
+            r"\bdisarm (security|alarm|system)\b"
         ]
 
         lockdown_patterns = [
             r"\blockdown\b", r"\bgoodnight\b", r"\bnight routine\b", r"\bsleep routine\b",
-            r"\bbedtime\b", r"\block up\b", r"\bsecure the house\b"
+            r"\bbedtime\b", r"\block up\b", r"\bsecure the house\b",
+            r"\block all doors\b", r"\bgoing to (bed|sleep)\b", r"\barm (the )?system\b"
         ]
 
         audit_patterns = [
-            r"\baudit\b", r"\bsecurity log\b", r"\bsha-?256\b", r"\bhistory of commands\b", r"\bwho unlocked\b"
+            r"\baudit\b", r"\bsecurity log\b", r"\bsha-?256\b", r"\bhistory of commands\b",
+            r"\bwho unlocked\b", r"\bwho accessed\b", r"\baccess log\b", r"\bwho opened\b"
         ]
 
         focus_patterns = [
@@ -209,16 +212,28 @@ class BedrockMCPAgent:
             r"\bdeliver", r"\bpackage", r"\bcourier", r"\bparcel",
             r"\bpostman\b", r"\bporch\b", r"\bvisitor", r"\bwho came\b",
             r"\bwho was here\b", r"\bring\b", r"\bdoorbell\b", r"\bcamera\b",
-            r"\bdrop(ped)? off\b", r"\bmotion\b"
+            r"\bdrop(ped)? off\b", r"\bmotion\b",
+            r"\b(anyone|anybody) (come|arrive|drop|visit)",
+            r"\bfront door (feed|view|camera|snapshot)\b"
         ]
 
         briefing_patterns = [
             r"\bbriefing\b", r"\bschedule\b", r"\bagenda\b", r"\bweather\b",
-            r"\bcalendar\b", r"\bdeadline\b", r"\bplan (for )?today\b"
+            r"\bcalendar\b", r"\bdeadline\b", r"\bplan (for )?today\b",
+            r"\bmeeting(s)?\b", r"\bappointment(s)?\b", r"\bevent(s)?\b",
+            r"\bcall(s)?\b", r"\btemp(erature)?\b", r"\brain\b", r"\bforecast\b",
+            r"\btoday\b", r"\bup next\b", r"\bwhat('s| is) on (my )?(day|plate|calendar)"
         ]
 
         habit_patterns = [
-            r"\bhabit\b", r"\bpattern\b", r"\blearned\b", r"\bpredict\b", r"\bpreference\b"
+            r"\bhabit\b", r"\bpattern\b", r"\blearned\b", r"\bpredict\b", r"\bpreference\b",
+            r"\bwhat time do i\b", r"\busual(ly)?\b"
+        ]
+
+        home_patterns = [
+            r"\bhome\b", r"\bhouse\b", r"\blight(s)?\b", r"\block(s)?\b", r"\bdoor(s)?\b",
+            r"\bthermostat\b", r"\bdevices\b", r"\bsmart home\b", r"\beverything locked\b",
+            r"\bpower\b", r"\bwatt(s)?\b", r"\bhvac\b"
         ]
 
         # Ambiguous check: Short words with zero context -> Clarification
@@ -395,8 +410,8 @@ class BedrockMCPAgent:
                 "tool_latency_ms": tool_latency
             }
 
-        # Fallback: General smart home state
-        else:
+        # 8. Smart Home status (if query mentions home devices, locks, lights, etc.)
+        elif any(re.search(pat, q) for pat in home_patterns):
             t0 = time.time()
             raw = TOOL_REGISTRY["analyze_smart_home_state"]()
             res_json = json.loads(raw)
@@ -410,3 +425,12 @@ class BedrockMCPAgent:
             })
             resp = f"Smart Home Status: Front door is {res_json['front_door_lock']}, Security is {res_json['security_system']}, Thermostat is at {res_json['thermostat_hvac']['current_temp_f']}°F."
             return {"response": resp, "tool_calls": tool_calls, "tool_latency_ms": tool_latency}
+
+        # Clarification fallback for ambiguous/unrecognized queries
+        else:
+            return {
+                "response": "I can check your Ring cameras for deliveries, brief you on today's schedule, or verify your smart home locks. Which would you like me to inspect?",
+                "tool_calls": [],
+                "tool_latency_ms": 0.0,
+                "security_status": "CLARIFICATION_REQUIRED"
+            }

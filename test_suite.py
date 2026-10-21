@@ -27,15 +27,53 @@ def run_tests():
     print("[*] ALEXA+ LIFESYNC MCP HARDENED TEST SUITE")
     print("=" * 70)
 
-    # Test 1: Short & Natural Paraphrase ("Did anyone deliver?")
-    print("\n[TEST 1] Testing Short Natural Paraphrase ('Did anyone deliver?')...")
-    r = requests.post(f"{BASE_URL}/api/chat", json={"message": "Did anyone deliver?"})
-    assert r.status_code == 200
-    res = r.json()
-    assert len(res["tool_calls"]) > 0
-    assert res["tool_calls"][0]["tool_name"] == "query_ring_security_events"
-    print(f"  [OK] Successfully routed to: {res['tool_calls'][0]['tool_name']}")
-    print(f"  [OK] Alexa Response: \"{res['response'][:75]}...\"")
+    # Test 1: Comprehensive Paraphrase Matrix (20+ Natural & Sloppy Phrasings)
+    print("\n[TEST 1] Testing 25+ Natural & Sloppy Paraphrases Across All Tool Categories...")
+    paraphrase_matrix = [
+        # Delivery / Ring events
+        ("Did anyone deliver?", "query_ring_security_events"),
+        ("any packages today?", "query_ring_security_events"),
+        ("who dropped off the box?", "query_ring_security_events"),
+        ("check the doorbell camera", "query_ring_security_events"),
+        ("did a courier come by?", "query_ring_security_events"),
+        ("who was at the front porch?", "query_ring_security_events"),
+        ("package arrived", "query_ring_security_events"),
+        # Night lockdown saga
+        ("Activate night lockdown", "execute_smart_routine"),
+        ("goodnight", "execute_smart_routine"),
+        ("bedtime routine", "execute_smart_routine"),
+        ("secure the house", "execute_smart_routine"),
+        ("lock up the house", "execute_smart_routine"),
+        # High-risk unlock (PIN challenge required)
+        ("unlock front door", "PIN_CHALLENGE_REQUIRED"),
+        ("open the front door", "PIN_CHALLENGE_REQUIRED"),
+        ("let guest in", "PIN_CHALLENGE_REQUIRED"),
+        ("welcome guest", "PIN_CHALLENGE_REQUIRED"),
+        # Audit log & security chain
+        ("show security audit log", "get_security_audit_log"),
+        ("who unlocked the door recently", "get_security_audit_log"),
+        ("show sha256 audit trail", "get_security_audit_log"),
+        # Briefing, schedule, weather, calendar
+        ("what is my daily briefing", "get_daily_context"),
+        ("weather today", "get_daily_context"),
+        ("what meetings do I have", "get_daily_context"),
+        ("what's on my calendar today", "get_daily_context"),
+        # Ambiguous queries requiring clarification
+        ("check", "CLARIFICATION_REQUIRED"),
+        ("status", "CLARIFICATION_REQUIRED"),
+        ("what's up", "CLARIFICATION_REQUIRED"),
+        ("inspect", "CLARIFICATION_REQUIRED"),
+    ]
+
+    for q, exp in paraphrase_matrix:
+        r = requests.post(f"{BASE_URL}/api/chat", json={"message": q})
+        assert r.status_code == 200
+        data = r.json()
+        status = data.get("security_status")
+        tools = [t["tool_name"] for t in data.get("tool_calls", [])]
+        matched = (exp in tools) or (exp == status)
+        assert matched, f"Paraphrase failed: '{q}' expected {exp}, got tools={tools}, status={status}"
+    print(f"  [OK] All {len(paraphrase_matrix)} paraphrases routed with 100% accuracy!")
 
     # Test 2: Low-Confidence Clarifying Question
     print("\n[TEST 2] Testing Clarifying Question on Ambiguous Query ('check')...")
