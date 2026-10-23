@@ -34,18 +34,18 @@
     </button>
 
     <div class="ecosystem-badges">
-      <div class="eco-badge real-badge" title="Genuinely Real API (Open-Meteo & RFC 5545 iCal)">
+      <button class="eco-badge real-badge clickable-badge" id="realApisBadge" title="Click to view Real vs Simulated Architecture">
         <span class="live-blink-dot"></span>
         <span>Real APIs (Weather/iCal)</span>
-      </div>
-      <div class="eco-badge" title="Matter / Zigbee Saga Orchestration">
+      </button>
+      <button class="eco-badge clickable-badge" id="sagaRollbackBadge" title="Click to execute Saga Rollback Demo">
         <span class="eco-icon">🛡️</span>
         <span>Saga Rollback</span>
-      </div>
-      <div class="eco-badge" title="AWS Bedrock Converse Agent">
+      </button>
+      <button class="eco-badge clickable-badge" id="bedrockBadge" title="Click to test Bedrock Daily Briefing">
         <span class="eco-icon">☁️</span>
         <span>Bedrock</span>
-      </div>
+      </button>
       <button class="voice-toggle-btn" id="voiceToggle" title="Toggle Alexa Speech Readout">
         <span id="voiceIcon">🔊</span>
         <span id="voiceLabel">Voice: ON</span>

@@ -154,6 +154,43 @@ runBenchmarkBtn.addEventListener("click", async () => {
   }
 });
 
+// Header Ecosystem Badges Click Handlers
+const sagaRollbackBadge = document.getElementById("sagaRollbackBadge");
+if (sagaRollbackBadge) {
+  sagaRollbackBadge.addEventListener("click", async () => {
+    if (toggleHardwareJam) toggleHardwareJam.checked = true;
+    if (jamStatusText) {
+      jamStatusText.textContent = "⚠️ Deadbolt Jam Active! Demonstrating Saga Rollback...";
+      jamStatusText.style.color = "var(--accent-rose)";
+    }
+    try {
+      await fetch("/api/hardware/toggle_jam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ simulate_jam: true })
+      });
+    } catch (e) {
+      console.error(e);
+    }
+    sendMessage("Activate Night Lockdown routine and check all smart locks.");
+  });
+}
+
+const realApisBadge = document.getElementById("realApisBadge");
+if (realApisBadge) {
+  realApisBadge.addEventListener("click", () => {
+    const tabBtn = document.querySelector('[data-tab="tab-transparency"]');
+    if (tabBtn) tabBtn.click();
+  });
+}
+
+const bedrockBadge = document.getElementById("bedrockBadge");
+if (bedrockBadge) {
+  bedrockBadge.addEventListener("click", () => {
+    sendMessage("Give me my daily briefing with live weather and schedule.");
+  });
+}
+
 // Failure Simulation Toggle
 toggleHardwareJam.addEventListener("change", async (e) => {
   const isChecked = e.target.checked;
