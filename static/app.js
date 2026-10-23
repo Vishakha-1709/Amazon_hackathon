@@ -268,8 +268,9 @@ function appendAssistantMessage(text, meta) {
     extraHtml = `
       <div class="pin-challenge-card">
         <span style="font-size: 0.76rem; color: var(--accent-rose); font-weight: 600;">🔒 Enter PIN:</span>
-        <input type="password" class="pin-input" id="activePinInput" maxlength="4" placeholder="4821" value="4821">
+        <input type="password" class="pin-input" id="activePinInput" maxlength="4" placeholder="4-digit PIN" autofocus onkeydown="if(event.key==='Enter') submitPinChallenge()">
         <button class="pin-submit-btn" onclick="submitPinChallenge()">Verify & Unlock</button>
+        <span style="font-size: 0.70rem; color: var(--text-dim); margin-left: 0.4rem;">(Default: 4821)</span>
       </div>
     `;
   }
@@ -301,7 +302,16 @@ function appendProactiveMessage(evt) {
 }
 
 function submitPinChallenge() {
-  const pin = document.getElementById("activePinInput")?.value || "4821";
+  const pinInput = document.getElementById("activePinInput");
+  const pin = pinInput?.value?.trim();
+  if (!pin) {
+    if (pinInput) {
+      pinInput.style.borderColor = "var(--accent-rose)";
+      pinInput.placeholder = "Required!";
+      pinInput.focus();
+    }
+    return;
+  }
   sendMessage("Unlock front door for guest with PIN " + pin, pin);
 }
 

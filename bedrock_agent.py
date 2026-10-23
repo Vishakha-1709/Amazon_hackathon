@@ -129,6 +129,12 @@ class BedrockMCPAgent:
         t_start = time.time()
         timeline = {}
 
+        # If security_pin not explicitly passed, inspect query for 4-digit voice PIN
+        if not provided_pin:
+            pin_match = re.search(r"\b(?:pin|code|passcode)?\s*(\d{4})\b", user_message, re.IGNORECASE)
+            if pin_match and ("pin" in user_message.lower() or "code" in user_message.lower() or "unlock" in user_message.lower()):
+                provided_pin = pin_match.group(1)
+
         # 1. Guardrail Stage
         t_g0 = time.time()
         timeline["guardrail_latency_ms"] = round((time.time() - t_g0) * 1000 + 1.4, 2)
